@@ -7,8 +7,8 @@
 ※保存された画像は 1024x1024 にリサイズされます。  
 
 以下の2種類を用意しており、cropimage_facedetectは画像中の顔を認識し枠を顔の周辺に表示します。
-cropimage.py
-cropimage_facedetect.py
+- cropimage.py
+- cropimage_facedetect.py
 
 ---
 
