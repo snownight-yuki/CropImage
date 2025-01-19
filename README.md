@@ -6,6 +6,10 @@
 動作はシンプルで、中央に表示される赤枠（512x512）の中に画像を収め、選択した範囲をクロップして保存します。  
 ※保存された画像は 1024x1024 にリサイズされます。  
 
+以下の2種類を用意しており、cropimage_facedetectは画像中の顔を認識し枠を顔の周辺に表示します。
+cropimage.py
+cropimage_facedetect.py
+
 ---
 
 ## 特徴
@@ -23,6 +27,9 @@
 - **必要なライブラリ**:
   - Pillow (Python Imaging Library)
   - tkinter（通常 Python に同梱されています）
+
+- **cropimage_facedetectを利用する場合**
+  - yolov11n-face.pt
 
 ---
 
@@ -45,6 +52,10 @@ pip install pillow
 
 1. このプロジェクトのスクリプト（`image_cropper.py`）をダウンロードまたはコピーしてください。
 2. スクリプトを保存したディレクトリに移動します。
+
+### 4. yolov11n-face.ptの配置（cropimage_facedetectを利用する場合のみ）
+https://github.com/akanametov/yolo-face?tab=readme-ov-file
+こちらのリポジトリより、yolov11n-face.ptをダウンロードし、cropimage_facedetect.pyと同じフォルダに配置します。
 
 ---
 
