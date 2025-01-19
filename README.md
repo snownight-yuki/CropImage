@@ -57,6 +57,14 @@ pip install pillow
 https://github.com/akanametov/yolo-face?tab=readme-ov-file
 こちらのリポジトリより、yolov11n-face.ptをダウンロードし、cropimage_facedetect.pyと同じフォルダに配置します。
 
+### 5. ultralyticsのインストール（cropimage_facedetectを利用する場合のみ）
+
+以下のコマンドをターミナルまたはコマンドプロンプトで実行して、必要なライブラリをインストールします：
+
+```bash
+pip install ultralytics
+```
+
 ---
 
 ## 使用方法
