@@ -3,7 +3,6 @@ from tkinter import Tk, Canvas, Button, Label, filedialog, Frame
 from PIL import Image, ImageTk
 from ultralytics import YOLO
 
-
 class ImageCropperWithFaceDetection:
     def __init__(self, root):
         self.root = root
@@ -39,6 +38,12 @@ class ImageCropperWithFaceDetection:
         # ドラッグ操作用
         self.drag_start_x = 0
         self.drag_start_y = 0
+
+        # クロップ枠移動用の属性
+        self.is_moving_crop = False
+        self.crop_drag_start_x = 0
+        self.crop_drag_start_y = 0
+        self.original_box_coords = None  # 移動開始時の枠の位置（画像内座標）
 
         # リサイズ状態の属性
         self.is_resizing = False
@@ -106,7 +111,7 @@ class ImageCropperWithFaceDetection:
             self.image_offset[0], self.image_offset[1],
             image=self.tk_image, anchor="nw", tags="image"
         )
-        # 顔検出枠の描画
+        # 顔検出枠の描画（青枠）
         for idx, (x1, y1, x2, y2) in enumerate(self.face_boxes):
             self.draw_face_box(idx, x1, y1, x2, y2)
         # 選択領域（赤枠とリサイズハンドル）の描画
@@ -133,18 +138,18 @@ class ImageCropperWithFaceDetection:
         self.display_image()  # 画像描画
 
         # 顔検出
-        results = self.model.predict(image_path, conf=0.15)
+        results = self.model.predict(image_path, conf=0.3)
         detections = results[0].boxes.xyxy.tolist() if results else []
 
         if detections:
             for idx, (x1, y1, x2, y2) in enumerate(detections):
                 face_height = y2 - y1
-                padding_top = face_height * 0.25
-                padding_bottom = face_height * 0.15
-                padding_sides = face_height * 0.1
+                padding_top = face_height*0.3
+                padding_bottom = face_height*0.3
+                padding_sides = face_height*0.3
 
-                x1 -= padding_sides
-                y1 -= padding_top
+                x1 -= padding_sides*1.8
+                y1 -= padding_top*1.8
                 x2 += padding_sides
                 y2 += padding_bottom
 
@@ -184,6 +189,7 @@ class ImageCropperWithFaceDetection:
         y1_canvas = (canvas_height - 512) // 2
         x2_canvas = x1_canvas + 512
         y2_canvas = y1_canvas + 512
+        # ※ここでは画面上のキャンバス座標をそのまま画像内座標とする（scale=1, offset=0想定）
         self.face_boxes = [(x1_canvas, y1_canvas, x2_canvas, y2_canvas)]
         self.selected_face_index = 0
         self.canvas.create_rectangle(
@@ -208,7 +214,7 @@ class ImageCropperWithFaceDetection:
             tag = f"resize_handle_{idx}"
             self.canvas.create_rectangle(
                 hx - handle_size, hy - handle_size, hx + handle_size, hy + handle_size,
-                fill="blue", outline="black", tags=tag
+                fill="red", outline="black", tags=tag
             )
             self.canvas.tag_bind(tag, "<ButtonPress-1>", lambda event, i=idx: self.start_resize(i))
             self.canvas.tag_bind(tag, "<ButtonRelease-1>", self.end_resize)
@@ -236,9 +242,25 @@ class ImageCropperWithFaceDetection:
         self.fixed_point = None
 
     def on_drag_start(self, event):
-        if not self.is_resizing:
-            self.drag_start_x = event.x
-            self.drag_start_y = event.y
+        # まず、リサイズ操作中でなければ、クリック位置が赤い選択枠内かどうかチェック
+        if not self.is_resizing and self.selected_face_index is not None:
+            x1, y1, x2, y2 = self.face_boxes[self.selected_face_index]
+            # キャンバス上での赤枠の座標
+            box_left = x1 * self.scale + self.image_offset[0]
+            box_top = y1 * self.scale + self.image_offset[1]
+            box_right = x2 * self.scale + self.image_offset[0]
+            box_bottom = y2 * self.scale + self.image_offset[1]
+            if box_left <= event.x <= box_right and box_top <= event.y <= box_bottom:
+                # クリック位置が赤枠内部なら、クロップ枠移動モードにする
+                self.is_moving_crop = True
+                self.crop_drag_start_x = event.x
+                self.crop_drag_start_y = event.y
+                self.original_box_coords = (x1, y1, x2, y2)
+                return  # ここで終了し、画像移動処理は行わない
+
+        # リサイズ中以外の場合、通常は画像移動用のドラッグ開始
+        self.drag_start_x = event.x
+        self.drag_start_y = event.y
 
     def on_drag(self, event):
         if self.is_resizing and self.active_handle_index is not None and self.selected_face_index is not None:
@@ -266,6 +288,14 @@ class ImageCropperWithFaceDetection:
                 return
             self.face_boxes[self.selected_face_index] = (x1_new, y1_new, x2_new, y2_new)
             self.display_image()
+        elif self.is_moving_crop and self.selected_face_index is not None:
+            # クロップ枠移動中の場合
+            dx = (event.x - self.crop_drag_start_x) / self.scale  # 画像内座標での差分
+            dy = (event.y - self.crop_drag_start_y) / self.scale
+            orig_x1, orig_y1, orig_x2, orig_y2 = self.original_box_coords
+            new_coords = (orig_x1 + dx, orig_y1 + dy, orig_x2 + dx, orig_y2 + dy)
+            self.face_boxes[self.selected_face_index] = new_coords
+            self.display_image()
         else:
             # 画像移動処理
             dx = event.x - self.drag_start_x
@@ -279,6 +309,9 @@ class ImageCropperWithFaceDetection:
     def on_mouse_release(self, event):
         if self.is_resizing:
             self.end_resize(event)
+        if self.is_moving_crop:
+            self.is_moving_crop = False
+            self.original_box_coords = None
 
     def on_zoom(self, event):
         zoom_factor = 1.1 if event.delta > 0 else 0.9
