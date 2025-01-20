@@ -47,9 +47,9 @@ class ImageCropperWithFaceDetection:
         self.fixed_point = None            # リサイズ中に固定する対角の点（画像内座標）
 
         # YOLOモデルのロード
-        self.model_path = os.path.join(os.getcwd(), "face_yolov8m.pt")
+        self.model_path = os.path.join(os.getcwd(), "yolov11n-face.pt")
         if not os.path.exists(self.model_path):
-            raise FileNotFoundError(f"Model file not found: {self.model_path}. Please place the YOLOv8 model in the current directory.")
+            raise FileNotFoundError(f"Model file not found: {self.model_path}. Please place the YOLOv11 model in the current directory.")
         self.model = YOLO(self.model_path)
 
         # マウスイベントのバインド
